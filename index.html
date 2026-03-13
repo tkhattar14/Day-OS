@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Focus">
+  <title>Focus App</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface-2: #1a1a24;
+      --border: #1e1e2a;
+      --text: #e8e8ed;
+      --text-dim: #6b6b7b;
+      --text-muted: #3a3a4a;
+      --accent: #f59e0b;
+      --focus: #f59e0b;
+      --personal: #ec4899;
+      --break: #10b981;
+      --reading: #6366f1;
+      --workout: #ef4444;
+      --commute: #6b7280;
+      --morning: #f59e0b;
+      --sleep-bg: #050508;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh; width: 100vw; overflow: hidden;
+      display: flex; flex-direction: column;
+      transition: background 1s ease;
+    }
+    body.mode-sleep { background: var(--sleep-bg); }
+    body.mode-personal { background: #0a0810; }
+
+    .top-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 28px 8px; flex-shrink: 0; z-index: 10;
+    }
+    .top-left { display: flex; align-items: center; gap: 16px; }
+    .mode-badge {
+      padding: 4px 14px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      background: rgba(245, 158, 11, 0.15); color: var(--accent);
+    }
+    .time-display { font-size: 1rem; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .date-display { font-size: 0.75rem; color: var(--text-muted); }
+    .top-right { display: flex; align-items: center; gap: 14px; }
+    .connection-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444; transition: background 0.3s;
+    }
+    .connection-dot.online { background: var(--break); }
+
+    .main { flex: 1; display: flex; min-height: 0; padding: 0 28px 8px; gap: 20px; }
+
+    .hero-area {
+      flex: 1; display: flex; flex-direction: column; justify-content: center;
+      align-items: center; text-align: center; min-width: 0;
+    }
+    .hero-icon { font-size: 3rem; margin-bottom: 12px; }
+    .hero-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-muted); margin-bottom: 8px; }
+    .hero-title { font-size: clamp(1.8rem, 4.5vw, 3.2rem); font-weight: 700; line-height: 1.15; max-width: 90%; margin-bottom: 14px; }
+    .hero-meta { display: flex; gap: 20px; align-items: center; font-size: 0.85rem; color: var(--text-dim); flex-wrap: wrap; justify-content: center; }
+    .hero-time-left { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .hero-time-left.urgent { color: #ef4444; }
+    .hero-progress { width: 50%; max-width: 350px; height: 4px; background: var(--border); border-radius: 2px; margin-top: 18px; overflow: hidden; }
+    .hero-progress-fill { height: 100%; border-radius: 2px; transition: width 1s linear; background: var(--accent); }
+    .hero-next { margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); }
+    .hero-next strong { color: var(--text-dim); }
+
+    .announcements-panel {
+      width: 260px; max-width: 30%; flex-shrink: 0; display: flex; flex-direction: column;
+      border-left: 1px solid var(--border); padding-left: 20px;
+    }
+    .ann-header {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--text-muted); padding: 4px 0 8px; flex-shrink: 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ann-clear {
+      font-size: 0.6rem; color: var(--text-muted); cursor: pointer;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); background: none;
+    }
+    .ann-clear:hover { color: var(--text-dim); border-color: var(--text-dim); }
+    .ann-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .ann-list::-webkit-scrollbar { width: 4px; }
+    .ann-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .ann-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; position: relative; animation: annSlide 0.3s ease-out; cursor: default; }
+    .ann-item.voice { border-left: 3px solid var(--accent); }
+    .ann-item.info { border-left: 3px solid var(--reading); }
+    .ann-item.urgent { border-left: 3px solid #ef4444; }
+    .ann-item.success { border-left: 3px solid var(--break); }
+    .ann-text { font-size: 0.78rem; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; max-height: 3.9em; }
+    .ann-item.expanded .ann-text { -webkit-line-clamp: unset; max-height: none; }
+    .ann-time { font-size: 0.6rem; color: var(--text-muted); margin-top: 4px; }
+    .ann-dismiss { position: absolute; top: 6px; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; }
+    .ann-dismiss:hover { background: var(--border); color: var(--text); }
+    .ann-empty { font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 24px 0; }
+    @keyframes annSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .commitments-bar { flex-shrink: 0; padding: 0 28px 6px; display: flex; gap: 10px; align-items: center; }
+    .commitments-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .commitment-item {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 12px; font-size: 0.75rem; color: var(--text);
+      flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .commitment-item.done { opacity: 0.4; text-decoration: line-through; }
+    .commitment-item .c-status { margin-right: 6px; }
+    .commitments-bar.empty { display: none; }
+
+    .timeline { flex-shrink: 0; padding: 8px 28px 16px; display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .timeline::-webkit-scrollbar { display: none; }
+    .timeline-block { flex-shrink: 0; padding: 8px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); min-width: 120px; transition: all 0.3s ease; }
+    .timeline-block.current { background: rgba(245, 158, 11, 0.08); border-color: var(--accent); }
+    .timeline-block.done { opacity: 0.25; }
+    .timeline-block .tl-icon { font-size: 0.9rem; }
+    .timeline-block .tl-time { font-size: 0.6rem; color: var(--text-muted); }
+    .timeline-block .tl-name { font-size: 0.75rem; font-weight: 600; margin-top: 2px; white-space: nowrap; }
+
+    .sleep-display { font-size: clamp(4rem, 12vw, 8rem); font-weight: 200; color: var(--text-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+    .sleep-label { font-size: 0.9rem; color: var(--text-muted); margin-top: 8px; opacity: 0.5; }
+
+    .mic-button {
+      position: fixed; bottom: 16px; right: 28px;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: var(--surface); border: 2px solid var(--border);
+      color: var(--text-dim); font-size: 1.3rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 1000; transition: all 0.3s;
+    }
+    .mic-button:active { transform: scale(0.95); }
+    .mic-button.listening { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; animation: micPulse 1.5s infinite; }
+    .mic-button.hidden { display: none; }
+    @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); } }
+    .mic-transcript { position: fixed; bottom: 76px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; max-width: 280px; font-size: 0.8rem; color: var(--text); z-index: 1000; display: none; }
+    .mic-transcript.visible { display: block; }
+    .mic-transcript .transcript-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+
+    .audio-unlock {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(99, 102, 241, 0.9); color: white;
+      padding: 12px 28px; border-radius: 24px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; z-index: 1000;
+      animation: pulse 2s infinite;
+      backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+    }
+    .audio-unlock.hidden { display: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.85; transform: translateX(-50%) scale(1.03); } }
+
+    .announcement-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white; padding: 12px 28px;
+      font-size: 0.9rem; font-weight: 600; text-align: center; z-index: 900;
+      transform: translateY(-100%); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .announcement-bar.visible { transform: translateY(0); }
+    .announcement-bar.urgent { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .announcement-bar.success { background: linear-gradient(135deg, #10b981, #059669); }
+
+    .fullscreen-alert {
+      position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 950; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .fullscreen-alert.visible { opacity: 1; pointer-events: auto; }
+    .fullscreen-alert.urgent { background: rgba(239, 68, 68, 0.95); }
+    .fullscreen-alert.success { background: rgba(16, 185, 129, 0.95); }
+    .fullscreen-alert.info { background: rgba(99, 102, 241, 0.95); }
+    .fullscreen-alert .alert-icon { font-size: 4rem; margin-bottom: 20px; }
+    .fullscreen-alert .alert-title { font-size: 2.5rem; font-weight: 800; color: white; margin-bottom: 12px; }
+    .fullscreen-alert .alert-message { font-size: 1.3rem; color: rgba(255,255,255,0.9); max-width: 600px; text-align: center; }
+
+    .timer-overlay { position: fixed; top: 16px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 18px; z-index: 800; display: none; text-align: center; }
+    .timer-overlay.visible { display: block; }
+    .timer-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .timer-display { font-size: 1.8rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+    .timer-display.urgent { color: #ef4444; }
+
+    .toast-container { position: fixed; bottom: 76px; left: 28px; z-index: 850; display: flex; flex-direction: column; gap: 6px; }
+    .toast { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; max-width: 300px; animation: slideIn 0.3s ease-out; border-left: 3px solid var(--accent); }
+    .toast.urgent { border-left-color: #ef4444; }
+    .toast.success { border-left-color: var(--break); }
+    .toast .toast-title { font-size: 0.78rem; font-weight: 700; margin-bottom: 3px; }
+    .toast .toast-body { font-size: 0.72rem; color: var(--text-dim); }
+    @keyframes slideIn { from { transform: translateX(-100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .confetti-container { position: fixed; inset: 0; pointer-events: none; z-index: 999; overflow: hidden; }
+    .confetti-piece { position: absolute; width: 10px; height: 10px; top: -10px; animation: confettiFall 3s ease-out forwards; }
+    @keyframes confettiFall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+
+    @media (orientation: portrait) {
+      .main { flex-direction: column; }
+      .announcements-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 10px; max-height: 180px; max-width: 100%; }
+      .hero-title { font-size: clamp(1.5rem, 5vw, 2.5rem); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mic-button hidden" id="micButton" onclick="toggleMic()">🎙️</div>
+  <div class="mic-transcript" id="micTranscript">
+    <div class="transcript-label">Listening...</div>
+    <div id="transcriptText"></div>
+  </div>
+
+  <div class="audio-unlock" id="audioUnlock" onclick="unlockAudio()">🔊 Tap to enable voice</div>
+
+  <div class="announcement-bar" id="announcementBar"></div>
+  <div class="fullscreen-alert" id="fullscreenAlert">
+    <div class="alert-icon" id="alertIcon"></div>
+    <div class="alert-title" id="alertTitle"></div>
+    <div class="alert-message" id="alertMessage"></div>
+  </div>
+  <div class="timer-overlay" id="timerOverlay">
+    <div class="timer-label" id="timerLabel">Timer</div>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+  </div>
+  <div class="toast-container" id="toastContainer"></div>
+  <div class="confetti-container" id="confettiContainer"></div>
+
+  <div class="top-bar">
+    <div class="top-left">
+      <div class="mode-badge" id="modeBadge">—</div>
+      <div>
+        <div class="time-display" id="clock"></div>
+        <div class="date-display" id="date"></div>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="connection-dot" id="connectionDot"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="hero-area" id="heroArea"></div>
+    <div class="announcements-panel" id="annPanel">
+      <div class="ann-header">
+        <span id="annPanelTitle">📌 Messages</span>
+        <button class="ann-clear" onclick="clearAnnouncements()">Clear all</button>
+      </div>
+      <div class="ann-list" id="annList">
+        <div class="ann-empty">No messages yet</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="commitments-bar empty" id="commitmentsBar">
+    <div class="commitments-label" id="goalsLabel">🎯 Today's Goals</div>
+  </div>
+
+  <div class="timeline" id="timeline"></div>
+
+  <script>
+    // ===== CONFIG (loaded from server) =====
+    let APP_CONFIG = null;
+
+    const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+    let ws = null;
+    let audioUnlocked = false;
+    let audioCtx = null;
+    let timerInterval = null;
+    let blessedPlayer = null;
+    let currentContext = null;
+    let localAnnouncements = [];
+    let currentCommitments = [];
+
+    // ===== TIME =====
+    function getLocalTime() {
+      const offset = APP_CONFIG?.timezoneOffset || 5.5;
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      return new Date(utc + offset * 60 * 60000);
+    }
+    function formatTime(d) {
+      const tz = APP_CONFIG?.timezone || 'UTC';
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+    }
+    function formatDate(d) {
+      const tz = APP_CONFIG?.timezone || 'UTC';
+      return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: tz });
+    }
+
+    function updateClock() {
+      const t = getLocalTime();
+      document.getElementById('clock').textContent = formatTime(t);
+      document.getElementById('date').textContent = formatDate(t);
+    }
+
+    // ===== MODE CONFIG =====
+    const MODE_CONFIG = {
+      'morning':    { label: '☀️ Morning',       badge: 'Morning',      badgeColor: '#f59e0b', bodyClass: '' },
+      'workout':    { label: '💪 Workout',        badge: 'Workout',      badgeColor: '#ef4444', bodyClass: '' },
+      'transition': { label: '🚿 Getting Ready',  badge: 'Transition',   badgeColor: '#6b7280', bodyClass: '' },
+      'light-work': { label: '💻 Light Work',     badge: 'Light Work',   badgeColor: '#8b5cf6', bodyClass: '' },
+      'commute':    { label: '🚗 Commute',        badge: 'Commute',      badgeColor: '#6b7280', bodyClass: '' },
+      'focus':      { label: '🎯 Focus',          badge: 'Deep Work',    badgeColor: '#f59e0b', bodyClass: '' },
+      'personal':   { label: '❤️ Personal',       badge: 'Personal',     badgeColor: '#ec4899', bodyClass: 'mode-personal' },
+      'reading':    { label: '📚 Reading',         badge: 'Reading',      badgeColor: '#6366f1', bodyClass: '' },
+      'sleep':      { label: '😴 Sleep',           badge: 'Sleep',        badgeColor: '#3a3a4a', bodyClass: 'mode-sleep' },
+      'idle':       { label: '⏳ Between Blocks', badge: 'Idle',         badgeColor: '#6b7280', bodyClass: '' },
+    };
+
+    // ===== WEBSOCKET =====
+    function connectWS() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => {
+        document.getElementById('connectionDot').classList.add('online');
+        ws.send(JSON.stringify({ event: 'hello', audioUnlocked }));
+      };
+      ws.onclose = () => {
+        document.getElementById('connectionDot').classList.remove('online');
+        setTimeout(connectWS, 3000);
+      };
+      ws.onerror = () => ws.close();
+      ws.onmessage = (e) => { try { handleCommand(JSON.parse(e.data)); } catch(err) {} };
+    }
+
+    function handleCommand(cmd) {
+      switch (cmd.action) {
+        case 'speak': speak(cmd.text); break;
+        case 'alert': showAlert(cmd.type||'info', cmd.title, cmd.message, cmd.icon, cmd.duration); break;
+        case 'banner': showBanner(cmd.text, cmd.type||'info', cmd.duration); break;
+        case 'toast': showToast(cmd.title, cmd.message, cmd.type); break;
+        case 'celebrate': celebrate(); break;
+        case 'sound': playSound(cmd.name||'chime'); break;
+        case 'timer': startTimer(cmd.minutes, cmd.label); break;
+        case 'timer-stop': stopTimer(); break;
+        case 'play_audio': playAudioFile(cmd.url, cmd.text); break;
+        case 'announcement': addLocalAnnouncement(cmd.announcement); break;
+        case 'announcement_removed': removeLocalAnnouncement(cmd.id); break;
+        case 'announcements_cleared': localAnnouncements = []; renderAnnouncements(); break;
+        case 'commitments_updated': if (cmd.commitments) { currentCommitments = cmd.commitments.commitments || []; renderCommitments(); } break;
+        case 'context': applyContext(cmd); break;
+        case 'reload': location.reload(); break;
+        case 'connected': break;
+      }
+    }
+
+    function applyContext(ctx) {
+      currentContext = ctx;
+      if (ctx.announcements) { localAnnouncements = ctx.announcements; renderAnnouncements(); }
+      if (ctx.commitments && ctx.commitments.commitments) { currentCommitments = ctx.commitments.commitments; renderCommitments(); }
+      render();
+      renderTimeline();
+    }
+
+    // ===== ANNOUNCEMENTS =====
+    function addLocalAnnouncement(ann) {
+      if (localAnnouncements.find(a => a.id === ann.id)) return;
+      localAnnouncements.push(ann);
+      renderAnnouncements();
+    }
+    function removeLocalAnnouncement(id) {
+      localAnnouncements = localAnnouncements.filter(a => a.id !== id);
+      renderAnnouncements();
+    }
+    function renderAnnouncements() {
+      const list = document.getElementById('annList');
+      if (localAnnouncements.length === 0) { list.innerHTML = '<div class="ann-empty">No messages yet</div>'; return; }
+      const sorted = [...localAnnouncements].reverse();
+      list.innerHTML = sorted.map(a => {
+        const timeAgo = getTimeAgo(a.timestamp);
+        const needsTruncate = a.text.length > 120;
+        return `<div class="ann-item ${a.type || 'info'}" ${needsTruncate ? `onclick="this.classList.toggle('expanded')"` : ''}>
+          <button class="ann-dismiss" onclick="event.stopPropagation(); dismissAnnouncement('${a.id}')">✕</button>
+          <div class="ann-text">${escapeHtml(a.text)}</div>
+          <div class="ann-time">${timeAgo}${needsTruncate ? ' · tap to expand' : ''}</div>
+        </div>`;
+      }).join('');
+    }
+    function dismissAnnouncement(id) { fetch('/api/announcements/' + id, { method: 'DELETE' }); removeLocalAnnouncement(id); }
+    function clearAnnouncements() { fetch('/api/announcements/clear', { method: 'POST' }); localAnnouncements = []; renderAnnouncements(); }
+    function getTimeAgo(ts) {
+      const diff = Date.now() - new Date(ts).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.floor(hrs / 24) + 'd ago';
+    }
+    function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ===== GOALS / COMMITMENTS =====
+    function renderCommitments() {
+      const bar = document.getElementById('commitmentsBar');
+      if (!currentCommitments || currentCommitments.length === 0) { bar.className = 'commitments-bar empty'; return; }
+      bar.className = 'commitments-bar';
+      const label = document.getElementById('goalsLabel').outerHTML;
+      const items = currentCommitments.map(c => {
+        const done = c.done ? 'done' : '';
+        const status = c.done ? '✅' : '⬜';
+        return `<div class="commitment-item ${done}"><span class="c-status">${status}</span>${escapeHtml(c.text)}</div>`;
+      }).join('');
+      bar.innerHTML = label + items;
+    }
+
+    // ===== AUDIO =====
+    function unlockAudio() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx.resume();
+      playTone([800, 1000, 1200], 0.15, 0.12);
+      // Bless an audio element for iOS Safari
+      blessedPlayer = new Audio('/audio/silence.mp3');
+      blessedPlayer.play().then(() => console.log('[AUDIO] blessed')).catch(() => {});
+      const greet = new SpeechSynthesisUtterance('Online. Voice enabled.');
+      greet.rate = 0.95;
+      speechSynthesis.speak(greet);
+      audioUnlocked = true;
+      document.getElementById('audioUnlock').classList.add('hidden');
+      document.getElementById('micButton').classList.remove('hidden');
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ event: 'audioUnlocked' }));
+    }
+
+    function speak(text) {
+      if (!audioUnlocked) { showBanner('🔇 ' + text, 'info', 5000); return; }
+      fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
+        .then(r => r.json())
+        .catch(() => {
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = 0.95;
+          speechSynthesis.speak(u);
+        });
+    }
+
+    function playAudioFile(url) {
+      if (!blessedPlayer || !audioUnlocked) return;
+      blessedPlayer.src = url;
+      blessedPlayer.load();
+      blessedPlayer.play().catch(e => console.log('[PLAY] err:', e));
+    }
+
+    function playSound(name) {
+      if (!audioUnlocked || !audioCtx) return;
+      const sounds = {
+        chime: () => playTone([800, 1000, 1200], 0.15, 0.12),
+        alert: () => playTone([600, 600, 800, 800], 0.2, 0.15),
+        urgent: () => playTone([400, 600, 400, 600, 400, 600], 0.15, 0.1),
+        success: () => playTone([523, 659, 784, 1047], 0.2, 0.15),
+        order: () => playTone([784, 988, 1175, 1319, 1568], 0.18, 0.12),
+        tick: () => playTone([1000], 0.05, 0.05),
+        ding: () => playTone([1200, 1600], 0.25, 0.2),
+      };
+      (sounds[name] || sounds.chime)();
+    }
+    function playTone(frequencies, duration, gap) {
+      let t = audioCtx.currentTime;
+      frequencies.forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.value = freq; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(t); osc.stop(t + duration);
+        t += gap;
+      });
+    }
+
+    // ===== OVERLAYS =====
+    function showAlert(type, title, message, icon, duration = 5000) {
+      const el = document.getElementById('fullscreenAlert');
+      el.className = `fullscreen-alert visible ${type}`;
+      document.getElementById('alertIcon').textContent = icon || (type==='urgent'?'🚨':type==='success'?'✅':'💡');
+      document.getElementById('alertTitle').textContent = title || '';
+      document.getElementById('alertMessage').textContent = message || '';
+      playSound(type === 'urgent' ? 'urgent' : type === 'success' ? 'success' : 'alert');
+      setTimeout(() => el.classList.remove('visible'), duration);
+    }
+    function showBanner(text, type = 'info', duration = 4000) {
+      const bar = document.getElementById('announcementBar');
+      bar.textContent = text;
+      bar.className = `announcement-bar visible ${type}`;
+      setTimeout(() => bar.classList.remove('visible'), duration);
+    }
+    function showToast(title, message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<div class="toast-title">${title||''}</div><div class="toast-body">${message||''}</div>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 6000);
+      while (container.children.length > 3) container.firstChild.remove();
+    }
+    function celebrate() {
+      playSound('order');
+      const container = document.getElementById('confettiContainer');
+      const colors = ['#f59e0b','#6366f1','#ec4899','#10b981','#ef4444','#3b82f6'];
+      for (let i = 0; i < 80; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-piece';
+        p.style.left = Math.random()*100 + '%';
+        p.style.background = colors[Math.floor(Math.random()*colors.length)];
+        p.style.animationDelay = Math.random()*1.5 + 's';
+        p.style.animationDuration = (2+Math.random()*2) + 's';
+        p.style.borderRadius = Math.random()>0.5 ? '50%' : '2px';
+        p.style.width = (6+Math.random()*8)+'px';
+        p.style.height = (6+Math.random()*8)+'px';
+        container.appendChild(p);
+      }
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+
+    // ===== TIMER =====
+    function startTimer(minutes, label) {
+      stopTimer();
+      const overlay = document.getElementById('timerOverlay');
+      overlay.classList.add('visible');
+      document.getElementById('timerLabel').textContent = label || 'Timer';
+      let remaining = Math.round(minutes * 60);
+      updateTimerDisplay(remaining);
+      timerInterval = setInterval(() => {
+        remaining--;
+        updateTimerDisplay(remaining);
+        if (remaining <= 60) document.getElementById('timerDisplay').classList.add('urgent');
+        if (remaining === 60) playSound('alert');
+        if (remaining === 0) { stopTimer(); showAlert('info', "Time's Up", label || 'Timer finished', '⏰', 4000); }
+      }, 1000);
+    }
+    function updateTimerDisplay(s) {
+      const m = Math.floor(s/60);
+      document.getElementById('timerDisplay').textContent = `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    }
+    function stopTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+      document.getElementById('timerOverlay').classList.remove('visible');
+      document.getElementById('timerDisplay').classList.remove('urgent');
+    }
+
+    // ===== MIC =====
+    let mediaRecorder = null, audioChunks = [], isListening = false, micStream = null;
+    async function toggleMic() {
+      if (isListening) { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); return; }
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = async () => {
+          isListening = false;
+          document.getElementById('micButton').classList.remove('listening');
+          document.getElementById('transcriptText').textContent = 'Transcribing...';
+          micStream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          if (blob.size < 1000) { document.getElementById('micTranscript').classList.remove('visible'); return; }
+          try {
+            const resp = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'audio/webm' }, body: blob });
+            const result = await resp.json();
+            if (result.ok && result.text) {
+              document.getElementById('transcriptText').textContent = result.text;
+              playSound('ding');
+              showToast('Message sent', result.text, 'success');
+            } else {
+              document.getElementById('transcriptText').textContent = result.error || 'Could not transcribe';
+            }
+          } catch(e) { document.getElementById('transcriptText').textContent = 'Error'; }
+          setTimeout(() => document.getElementById('micTranscript').classList.remove('visible'), 3000);
+        };
+        mediaRecorder.start();
+        isListening = true;
+        document.getElementById('micButton').classList.add('listening');
+        document.getElementById('micTranscript').classList.add('visible');
+        document.getElementById('transcriptText').textContent = 'Listening...';
+        playSound('tick');
+      } catch(e) { showBanner('Microphone access denied', 'urgent', 5000); }
+    }
+
+    // ===== RENDER =====
+    function render() {
+      if (!currentContext) return;
+      try {
+        const { schedule } = currentContext;
+        const mode = schedule.mode;
+        const block = schedule.currentBlock;
+        const next = schedule.nextBlock;
+        const mc = MODE_CONFIG[mode] || MODE_CONFIG['idle'];
+
+        const badge = document.getElementById('modeBadge');
+        badge.textContent = mc.badge;
+        badge.style.background = mc.badgeColor + '22';
+        badge.style.color = mc.badgeColor;
+        document.body.className = mc.bodyClass || '';
+
+        const hero = document.getElementById('heroArea');
+
+        if (mode === 'sleep') {
+          hero.innerHTML = `<div class="sleep-display" id="sleepClock">${schedule.timeLocal}</div><div class="sleep-label">Sleep well</div>`;
+          return;
+        }
+
+        if (mode === 'focus') {
+          const mLeft = block ? block.minutesLeft : 0;
+          const pct = block ? Math.round((block.minutesElapsed / block.totalMinutes) * 100) : 0;
+          hero.innerHTML = `
+            <div class="hero-icon">${block ? block.icon : '🎯'}</div>
+            <div class="hero-label">FOCUS MODE</div>
+            <div class="hero-title" style="color: var(--focus)">${block ? block.label : 'Deep Work'}</div>
+            <div class="hero-meta">
+              <span class="hero-time-left ${mLeft <= 10 ? 'urgent' : ''}" style="color: ${mc.badgeColor}">${mLeft}m left</span>
+              <span>${block ? block.start + ' – ' + block.end : ''}</span>
+            </div>
+            <div class="hero-progress"><div class="hero-progress-fill" style="width:${pct}%; background:${mc.badgeColor}"></div></div>
+            ${next ? `<div class="hero-next">Next: <strong>${next.icon} ${next.label}</strong></div>` : ''}`;
+          return;
+        }
+
+        if (mode === 'workout') {
+          const mLeft = block ? block.minutesLeft : 0;
+          const pct = block ? Math.round((block.minutesElapsed / block.totalMinutes) * 100) : 0;
+          hero.innerHTML = `
+            <div class="hero-icon" style="font-size:4rem">💪</div>
+            <div class="hero-label">WORKOUT TIME</div>
+            <div class="hero-title" style="color: var(--workout)">${mLeft}m remaining</div>
+            <div class="hero-progress" style="max-width:450px; height:6px;">
+              <div class="hero-progress-fill" style="width:${pct}%; background:var(--workout)"></div>
+            </div>
+            <div class="hero-next" style="margin-top:24px">Keep pushing 🔥</div>`;
+          return;
+        }
+
+        if (mode === 'reading') {
+          const mLeft = block ? block.minutesLeft : 0;
+          hero.innerHTML = `
+            <div class="hero-icon" style="font-size:3.5rem">📚</div>
+            <div class="hero-label">READING TIME</div>
+            <div class="hero-title" style="color: var(--reading)">${mLeft}m remaining</div>
+            <div class="hero-next" style="margin-top:12px; opacity:0.5">Wind down and read</div>`;
+          return;
+        }
+
+        if (mode === 'personal') {
+          const mLeft = block ? block.minutesLeft : 0;
+          hero.innerHTML = `
+            <div class="hero-icon" style="font-size:3.5rem">❤️</div>
+            <div class="hero-label">PERSONAL TIME</div>
+            <div class="hero-title" style="color: var(--personal)">${block ? block.label : 'Personal'}</div>
+            <div class="hero-next" style="margin-top:12px; font-size:0.85rem; color: var(--text-dim)">
+              ${next ? next.label + ' starts in ' + mLeft + 'm' : mLeft + 'm remaining'}
+            </div>`;
+          return;
+        }
+
+        if (mode === 'morning') {
+          const nextInfo = next ? `${next.label} at ${next.start}` : '';
+          hero.innerHTML = `
+            <div class="hero-icon" style="font-size:3.5rem">☀️</div>
+            <div class="hero-label">GOOD MORNING</div>
+            <div class="hero-title" style="color: var(--morning)">Rise & Shine</div>
+            ${nextInfo ? `<div class="hero-next">${nextInfo}</div>` : ''}`;
+          return;
+        }
+
+        if (mode === 'idle' || !block) {
+          const blocks = schedule.blocks || [];
+          const upcomingBlocks = blocks.filter(b => b.mode !== 'sleep').slice(0, 6);
+          const overviewHtml = upcomingBlocks.map(b =>
+            `<span style="color:${b.color || 'var(--text-dim)'}; font-size:0.8rem; margin: 0 4px;">${b.icon} ${b.start}</span>`
+          ).join('→ ');
+          hero.innerHTML = `
+            <div class="hero-icon" style="font-size:2.5rem">${next ? next.icon : '☀️'}</div>
+            <div class="hero-label">${next ? 'DAY STARTS SOON' : 'NO ACTIVE BLOCK'}</div>
+            <div class="hero-title" style="color: var(--morning)">${next ? next.label + ' at ' + next.start : 'Waiting...'}</div>
+            <div style="margin-top:16px; display:flex; flex-wrap:wrap; justify-content:center; gap:4px; align-items:center;">
+              ${overviewHtml}
+            </div>`;
+        } else {
+          const mLeft = block.minutesLeft;
+          const pct = Math.round((block.minutesElapsed / block.totalMinutes) * 100);
+          hero.innerHTML = `
+            <div class="hero-icon">${block.icon}</div>
+            <div class="hero-label">${mc.label}</div>
+            <div class="hero-title" style="color: ${mc.badgeColor}">${block.label}</div>
+            <div class="hero-meta">
+              <span class="hero-time-left" style="color: ${mc.badgeColor}">${mLeft}m left</span>
+              <span>${block.start} – ${block.end}</span>
+            </div>
+            <div class="hero-progress"><div class="hero-progress-fill" style="width:${pct}%; background:${mc.badgeColor}"></div></div>
+            ${next ? `<div class="hero-next">Next: <strong>${next.icon} ${next.label}</strong></div>` : ''}`;
+        }
+      } catch(e) {
+        console.error('[RENDER]', e);
+        document.getElementById('heroArea').innerHTML = `<div style="color:#ef4444;text-align:center"><div style="font-size:2rem">⚠️</div><div>Render error: ${e.message}</div></div>`;
+      }
+    }
+
+    function renderTimeline() {
+      if (!currentContext) return;
+      const { schedule } = currentContext;
+      const blocks = schedule.blocks;
+      const cidx = schedule.currentIdx;
+      const tl = document.getElementById('timeline');
+
+      tl.innerHTML = blocks.map((b, i) => {
+        let cls = 'timeline-block';
+        if (i === cidx) cls += ' current';
+        else if (cidx >= 0 && i < cidx) cls += ' done';
+        else if (cidx >= 0 && cidx >= 8 && i < 8) cls += ' done';
+        return `<div class="${cls}">
+          <div class="tl-icon">${b.icon}</div>
+          <div class="tl-time">${b.start} – ${b.end}</div>
+          <div class="tl-name">${b.label}</div>
+        </div>`;
+      }).join('');
+
+      if (cidx >= 0 && tl.children[cidx]) {
+        tl.children[cidx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    // ===== FETCH (fallback for context) =====
+    async function fetchContext() {
+      try {
+        const resp = await fetch('/api/context?t=' + Date.now());
+        if (!resp.ok) return;
+        const ctx = await resp.json();
+        applyContext(ctx);
+      } catch(e) {
+        console.error('[FETCH]', e);
+      }
+    }
+
+    // ===== INIT =====
+    document.getElementById('heroArea').innerHTML = '<div style="color:var(--text-dim);text-align:center"><div style="font-size:2rem">⏳</div><div>Loading...</div></div>';
+
+    // Load config then start
+    fetch('/config.json?t=' + Date.now())
+      .then(r => r.json())
+      .then(cfg => {
+        APP_CONFIG = cfg;
+        // Apply config to UI
+        if (cfg.announcements?.panelTitle) document.getElementById('annPanelTitle').textContent = cfg.announcements.panelTitle;
+        if (cfg.goals?.label) document.getElementById('goalsLabel').textContent = '🎯 ' + cfg.goals.label;
+        if (cfg.name) document.title = cfg.name;
+      })
+      .catch(() => { APP_CONFIG = {}; })
+      .finally(() => {
+        updateClock();
+        fetchContext();
+        connectWS();
+        setInterval(updateClock, 1000);
+        setInterval(fetchContext, 15000);
+        setInterval(render, 5000);
+        setInterval(() => {
+          const el = document.getElementById('sleepClock');
+          if (el) el.textContent = formatTime(getLocalTime());
+        }, 1000);
+      });
+
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  </script>
+</body>
+</html>

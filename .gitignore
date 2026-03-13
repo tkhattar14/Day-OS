@@ -1,0 +1,14 @@
+# Secrets
+.env
+certs/
+
+# Runtime data
+data/
+audio/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/

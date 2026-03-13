@@ -1,0 +1,53 @@
+{
+  "name": "Focus",
+  "timezone": "Asia/Kolkata",
+  "timezoneOffset": 5.5,
+
+  "schedule": {
+    "anchor": "09:00",
+    "blocks": [
+      { "id": "wake",         "start": "09:00", "end": "09:30", "label": "Wake Up",         "icon": "☀️", "mode": "morning",    "color": "#f59e0b" },
+      { "id": "workout",      "start": "09:30", "end": "10:30", "label": "Workout",         "icon": "💪", "mode": "workout",    "color": "#ef4444" },
+      { "id": "ready",        "start": "10:30", "end": "11:00", "label": "Getting Ready",   "icon": "🚿", "mode": "transition", "color": "#6b7280" },
+      { "id": "morning-work", "start": "11:00", "end": "12:30", "label": "Morning Work",    "icon": "💻", "mode": "light-work", "color": "#8b5cf6" },
+      { "id": "lunch",        "start": "12:30", "end": "13:30", "label": "Lunch",           "icon": "🍳", "mode": "transition", "color": "#6b7280" },
+      { "id": "focus-1",      "start": "13:30", "end": "17:30", "label": "Deep Work",       "icon": "🎯", "mode": "focus",      "color": "#f59e0b" },
+      { "id": "break",        "start": "17:30", "end": "18:00", "label": "Break",           "icon": "☕", "mode": "transition", "color": "#6b7280" },
+      { "id": "focus-2",      "start": "18:00", "end": "20:00", "label": "Deep Work",       "icon": "🎯", "mode": "focus",      "color": "#f59e0b" },
+      { "id": "evening",      "start": "20:00", "end": "22:00", "label": "Personal Time",   "icon": "❤️", "mode": "personal",   "color": "#ec4899" },
+      { "id": "reading",      "start": "22:00", "end": "23:00", "label": "Reading",         "icon": "📚", "mode": "reading",    "color": "#6366f1" },
+      { "id": "sleep",        "start": "23:00", "end": "09:00", "label": "Sleep",           "icon": "😴", "mode": "sleep",      "color": "#1e1e2a" }
+    ]
+  },
+
+  "voice": {
+    "tts": {
+      "provider": "elevenlabs",
+      "voiceId": ""
+    },
+    "stt": {
+      "provider": "whisper"
+    }
+  },
+
+  "webhook": {
+    "enabled": false,
+    "url": "http://localhost:18789/hooks/wake",
+    "token": "",
+    "messageTemplate": "[🎙️ Voice] User said: \"{text}\""
+  },
+
+  "goals": {
+    "enabled": true,
+    "label": "Today's Goals"
+  },
+
+  "announcements": {
+    "panelTitle": "📌 Messages"
+  },
+
+  "server": {
+    "httpPort": 3141,
+    "httpsPort": 3142
+  }
+}
