@@ -1,5 +1,5 @@
 #!/bin/bash
-# Focus App — One-command setup
+# DayOS — One-command setup
 # Generates SSL certs, creates .env, installs systemd service
 
 set -e
@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo ""
-echo "  ⚡ Focus App Setup"
+echo "  ⚡ DayOS Setup"
 echo "  ==================="
 echo ""
 
@@ -20,7 +20,7 @@ if [ ! -f certs/server.key ]; then
   echo "  🔐 Generating self-signed SSL certificate (10-year validity)..."
   IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
   openssl req -x509 -newkey rsa:2048 -keyout certs/server.key -out certs/server.crt \
-    -days 3650 -nodes -subj "/CN=focus-app" \
+    -days 3650 -nodes -subj "/CN=dayos" \
     -addext "subjectAltName=IP:${IP},IP:127.0.0.1,DNS:localhost" 2>/dev/null
   echo "  ✅ Certificate generated at certs/server.{key,crt}"
   echo ""
@@ -28,7 +28,7 @@ if [ ! -f certs/server.key ]; then
   echo "     1. Open https://${IP}:3142 in Safari"
   echo "     2. Tap 'Advanced' → 'Visit this website'"
   echo "     3. Go to Settings → General → About → Certificate Trust Settings"
-  echo "     4. Enable trust for 'focus-app'"
+  echo "     4. Enable trust for 'dayos'"
   echo ""
 else
   echo "  ✅ SSL certificate already exists"
@@ -57,10 +57,10 @@ echo ""
 read -p "  Install as systemd service (auto-start on boot)? [y/N] " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  SERVICE_FILE="/etc/systemd/system/focus-app.service"
+  SERVICE_FILE="/etc/systemd/system/dayos.service"
   sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
-Description=Focus App (HTTP + WebSocket)
+Description=DayOS (HTTP + WebSocket)
 After=network.target
 
 [Service]
@@ -76,10 +76,10 @@ Environment=NODE_ENV=production
 WantedBy=multi-user.target
 EOF
   sudo systemctl daemon-reload
-  sudo systemctl enable focus-app
-  sudo systemctl restart focus-app
-  echo "  ✅ Installed and started focus-app.service"
-  echo "  📋 Commands: sudo systemctl {start|stop|restart|status} focus-app"
+  sudo systemctl enable dayos
+  sudo systemctl restart dayos
+  echo "  ✅ Installed and started dayos.service"
+  echo "  📋 Commands: sudo systemctl {start|stop|restart|status} dayos"
 else
   echo "  ⏭  Skipped systemd install"
   echo "  Run manually: node server.js"

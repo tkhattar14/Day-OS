@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Focus App — Self-hosted daily operating system
+// DayOS — Self-hosted daily operating system
 // Zero npm dependencies — just Node.js
 // HTTP + HTTPS + WebSocket
 
@@ -403,7 +403,7 @@ function setupWS(wss, label) {
   wss.on('connection', (ws) => {
     clients.add(ws);
     console.log(`[${label}] Client connected (${clients.size} total)`);
-    ws.send(JSON.stringify({ action: 'connected', message: 'Focus App online' }));
+    ws.send(JSON.stringify({ action: 'connected', message: 'DayOS online' }));
 
     // Push full context on connect
     try { ws.send(JSON.stringify({ action: 'context', ...buildContext() })); }
@@ -448,7 +448,7 @@ const server = http.createServer(handleRequest);
 setupWS(new WebSocketServer({ server }), 'WS');
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  ⚡ Focus App`);
+  console.log(`\n  ⚡ DayOS`);
   console.log(`  HTTP:  http://0.0.0.0:${PORT}`);
   console.log(`  API:   http://localhost:${PORT}/api/status\n`);
 });

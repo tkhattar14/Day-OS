@@ -1,5 +1,5 @@
 #!/bin/bash
-# Focus App CLI — send commands to the dashboard
+# DayOS CLI — send commands to the dashboard
 #
 # SPEAK (ElevenLabs TTS):
 #   focus-say.sh speak "Hello world"
@@ -57,7 +57,7 @@ case "${1:-help}" in
     curl $CURL_OPTS "$DASHBOARD_URL/api/status"
     ;;
   *)
-    echo "Focus App CLI"
+    echo "DayOS CLI"
     echo ""
     echo "Usage:"
     echo "  focus-say.sh speak \"Hello\"         Send voice message (TTS)"

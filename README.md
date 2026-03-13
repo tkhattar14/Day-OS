@@ -1,4 +1,4 @@
-# Focus App
+# DayOS
 
 **Your daily operating system, self-hosted, voice-first, zero dependencies.**
 
@@ -43,8 +43,8 @@ Most productivity tools are either cloud SaaS or require Docker + 10 services. T
 
 ```bash
 # Clone
-git clone https://github.com/tkhattar14/focus-app.git
-cd focus-app
+git clone https://github.com/tkhattar14/dayos.git
+cd dayos
 
 # Setup (generates SSL certs, creates .env)
 chmod +x setup.sh
@@ -102,7 +102,7 @@ Blocks can span midnight. The schedule engine uses the `anchor` time as the day 
 
 ## Voice Setup (Optional)
 
-Focus App works perfectly as a display-only dashboard. Voice is entirely optional.
+DayOS works perfectly as a display-only dashboard. Voice is entirely optional.
 
 ### Text-to-Speech (ElevenLabs)
 
@@ -186,22 +186,22 @@ All endpoints accept/return JSON. CORS enabled.
 ## CLI
 
 ```bash
-chmod +x focus-say.sh
+chmod +x dayos-say.sh
 
 # Speak (TTS)
-./focus-say.sh speak "Time for a break"
+./dayos-say.sh speak "Time for a break"
 
 # Text announcement (stays on screen)
-./focus-say.sh announce "PR merged!" success
+./dayos-say.sh announce "PR merged!" success
 
 # Set today's goals
-./focus-say.sh goals "Ship feature X" "Fix bug Y" "Review PRs"
+./dayos-say.sh goals "Ship feature X" "Fix bug Y" "Review PRs"
 
 # Raw command
-./focus-say.sh raw '{"action":"timer","minutes":25,"label":"Pomodoro"}'
+./dayos-say.sh raw '{"action":"timer","minutes":25,"label":"Pomodoro"}'
 
 # Status
-./focus-say.sh status
+./dayos-say.sh status
 ```
 
 ### Schedule Override
