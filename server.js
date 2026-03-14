@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const { execSync } = require('child_process');
-const { getCurrentSchedule, loadConfig } = require('./schedule');
+const { getCurrentSchedule, getLocalTime, loadConfig } = require('./schedule');
 
 // Load config
 const config = loadConfig();
@@ -28,8 +28,39 @@ const ELEVENLABS_VOICE = process.env.ELEVENLABS_VOICE || '';
 const HOOKS_TOKEN = process.env.HOOKS_TOKEN || '';
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 18789;
 
+const HISTORY_DIR = path.join(DATA_DIR, 'history');
+
 // Ensure directories
-[AUDIO_DIR, DATA_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+[AUDIO_DIR, DATA_DIR, HISTORY_DIR].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+
+// ===== DAILY ARCHIVE =====
+// Save each day's data for retrospective analysis
+let lastArchivedDate = null;
+
+function archiveDayData() {
+  const local = getLocalTime();
+  const todayStr = local.toISOString().slice(0, 10);
+  if (lastArchivedDate === todayStr) return;
+
+  const filesToArchive = ['today.json', 'schedule-override.json', 'commitments.json', 'announcements.json', 'voice-messages.json'];
+
+  for (const file of filesToArchive) {
+    const src = path.join(DATA_DIR, file);
+    if (!fs.existsSync(src)) continue;
+    try {
+      const content = JSON.parse(fs.readFileSync(src, 'utf8'));
+      const fileDate = content.date || content[0]?.timestamp?.slice(0, 10) || null;
+      if (fileDate && fileDate !== todayStr) {
+        const dest = path.join(HISTORY_DIR, `${fileDate}-${file}`);
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(src, dest);
+          console.log(`[ARCHIVE] Saved ${fileDate}-${file}`);
+        }
+      }
+    } catch (e) {}
+  }
+  lastArchivedDate = todayStr;
+}
 
 // Simple .env loader (no dependencies)
 function loadEnvFile() {
@@ -369,6 +400,42 @@ async function handleRequest(req, res) {
     return;
   }
 
+  // === API: History (list archived days) ===
+  if (req.method === 'GET' && req.url === '/api/history') {
+    try {
+      const files = fs.readdirSync(HISTORY_DIR).filter(f => f.endsWith('.json')).sort().reverse();
+      const days = {};
+      for (const f of files) {
+        const date = f.slice(0, 10);
+        if (!days[date]) days[date] = [];
+        days[date].push(f);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ days, files }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ days: {}, files: [] }));
+    }
+    return;
+  }
+
+  // === API: Force archive current day ===
+  if (req.method === 'POST' && req.url === '/api/archive') {
+    const local = getLocalTime();
+    const todayStr = local.toISOString().slice(0, 10);
+    const filesToArchive = ['today.json', 'schedule-override.json', 'commitments.json', 'announcements.json', 'voice-messages.json'];
+    const archived = [];
+    for (const file of filesToArchive) {
+      const src = path.join(DATA_DIR, file);
+      if (!fs.existsSync(src)) continue;
+      const dest = path.join(HISTORY_DIR, `${todayStr}-${file}`);
+      try { fs.copyFileSync(src, dest); archived.push(`${todayStr}-${file}`); } catch (e) {}
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, archived }));
+    return;
+  }
+
   // === API: Status ===
   if (req.method === 'GET' && req.url === '/api/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -446,6 +513,10 @@ setInterval(() => {
 // ===== START SERVERS =====
 const server = http.createServer(handleRequest);
 setupWS(new WebSocketServer({ server }), 'WS');
+
+// Archive yesterday's data on startup, then check hourly
+archiveDayData();
+setInterval(archiveDayData, 3600000);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  ⚡ DayOS`);
