@@ -97,6 +97,10 @@ const ANNOUNCEMENTS_FILE = path.join(DATA_DIR, 'announcements.json');
 const COMMITMENTS_FILE = path.join(DATA_DIR, 'commitments.json');
 const MESSAGES_FILE = path.join(DATA_DIR, 'voice-messages.json');
 
+// Hero override — agents can take over the center UI
+let heroOverride = null;
+let heroTimer = null;
+
 // Load persisted state
 try { messages.push(...JSON.parse(fs.readFileSync(MESSAGES_FILE, 'utf8'))); } catch (e) {}
 try { announcements.push(...JSON.parse(fs.readFileSync(ANNOUNCEMENTS_FILE, 'utf8'))); } catch (e) {}
@@ -197,7 +201,7 @@ function buildContext() {
   const schedule = getCurrentSchedule();
   let plan = null;
   try { plan = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'today.json'), 'utf8')); } catch (e) {}
-  return { schedule, announcements, plan, commitments };
+  return { schedule, announcements, plan, commitments, hero: heroOverride };
 }
 
 // ===== REQUEST HANDLER =====
@@ -409,6 +413,56 @@ async function handleRequest(req, res) {
   if (req.method === 'GET' && req.url.startsWith('/api/context')) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(buildContext()));
+    return;
+  }
+
+  // === API: Hero (agent-controlled center UI) ===
+  if (req.method === 'POST' && req.url === '/api/hero') {
+    const body = await readBody(req);
+    try {
+      const data = JSON.parse(body);
+      if (!data.html) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'html field required' }));
+        return;
+      }
+      heroOverride = {
+        html: data.html,
+        source: data.source || 'unknown',
+        timestamp: new Date().toISOString(),
+        ttl: data.ttl || 0
+      };
+      // Auto-expire
+      if (heroTimer) clearTimeout(heroTimer);
+      if (data.ttl > 0) {
+        heroTimer = setTimeout(() => {
+          heroOverride = null;
+          broadcast({ action: 'hero_clear' });
+          console.log(`[HERO] Auto-expired (ttl=${data.ttl}s, source=${heroOverride?.source})`);
+        }, data.ttl * 1000);
+      }
+      broadcast({ action: 'hero', ...heroOverride });
+      console.log(`[HERO] Override set by ${heroOverride.source}${data.ttl ? ` (ttl=${data.ttl}s)` : ' (persistent)'}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, source: heroOverride.source }));
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    }
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/api/hero/clear') {
+    heroOverride = null;
+    if (heroTimer) { clearTimeout(heroTimer); heroTimer = null; }
+    broadcast({ action: 'hero_clear' });
+    console.log('[HERO] Cleared');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/api/hero') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(heroOverride || { active: false }));
     return;
   }
 

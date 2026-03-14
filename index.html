@@ -339,6 +339,8 @@
         case 'announcement_removed': removeLocalAnnouncement(cmd.id); break;
         case 'announcements_cleared': localAnnouncements = []; renderAnnouncements(); break;
         case 'commitments_updated': if (cmd.commitments) { currentCommitments = cmd.commitments.commitments || []; renderCommitments(); } break;
+        case 'hero': if (currentContext) { currentContext.hero = { html: cmd.html, source: cmd.source, timestamp: cmd.timestamp }; render(); } break;
+        case 'hero_clear': if (currentContext) { currentContext.hero = null; render(); } break;
         case 'context': applyContext(cmd); break;
         case 'reload': location.reload(); break;
         case 'connected': break;
@@ -579,7 +581,7 @@
     function render() {
       if (!currentContext) return;
       try {
-        const { schedule } = currentContext;
+        const { schedule, hero: heroData } = currentContext;
         const mode = schedule.mode;
         const block = schedule.currentBlock;
         const next = schedule.nextBlock;
@@ -592,6 +594,12 @@
         document.body.className = mc.bodyClass || '';
 
         const hero = document.getElementById('heroArea');
+
+        // Agent hero override — full creative control of center area
+        if (heroData && heroData.html) {
+          hero.innerHTML = heroData.html;
+          return;
+        }
 
         if (mode === 'sleep') {
           hero.innerHTML = `<div class="sleep-display" id="sleepClock">${schedule.timeLocal}</div><div class="sleep-label">Sleep well</div>`;
