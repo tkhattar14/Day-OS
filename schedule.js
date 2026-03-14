@@ -101,7 +101,18 @@ function getCurrentSchedule(sleepOffset = 0) {
   }
 
   const mode = currentBlock ? currentBlock.mode : 'idle';
-  const tz = config.timezone || 'UTC';
+
+  // Format time — getLocalTime() already applied timezone offset,
+  // so we format without timeZone to avoid double-offsetting
+  const hh = local.getHours();
+  const mm = local.getMinutes();
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  const h12 = hh % 12 || 12;
+  const timeLocal = `${h12.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')} ${ampm}`;
+  
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const dateLocal = `${days[local.getDay()]}, ${months[local.getMonth()]} ${local.getDate()}`;
 
   return {
     mode,
@@ -110,8 +121,8 @@ function getCurrentSchedule(sleepOffset = 0) {
     currentIdx,
     blocks: BLOCKS,
     timestamp: local.toISOString(),
-    timeLocal: local.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz }),
-    dateLocal: local.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: tz }),
+    timeLocal,
+    dateLocal,
   };
 }
 

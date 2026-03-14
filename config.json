@@ -2,50 +2,46 @@
   "name": "DayOS",
   "timezone": "Asia/Kolkata",
   "timezoneOffset": 5.5,
-
   "schedule": {
     "anchor": "09:00",
     "blocks": [
-      { "id": "wake",         "start": "09:00", "end": "09:30", "label": "Wake Up",         "icon": "☀️", "mode": "morning",    "color": "#f59e0b" },
-      { "id": "workout",      "start": "09:30", "end": "10:30", "label": "Workout",         "icon": "💪", "mode": "workout",    "color": "#ef4444" },
-      { "id": "ready",        "start": "10:30", "end": "11:00", "label": "Getting Ready",   "icon": "🚿", "mode": "transition", "color": "#6b7280" },
-      { "id": "morning-work", "start": "11:00", "end": "12:30", "label": "Morning Work",    "icon": "💻", "mode": "light-work", "color": "#8b5cf6" },
-      { "id": "lunch",        "start": "12:30", "end": "13:30", "label": "Lunch",           "icon": "🍳", "mode": "transition", "color": "#6b7280" },
-      { "id": "focus-1",      "start": "13:30", "end": "17:30", "label": "Deep Work",       "icon": "🎯", "mode": "focus",      "color": "#f59e0b" },
-      { "id": "break",        "start": "17:30", "end": "18:00", "label": "Break",           "icon": "☕", "mode": "transition", "color": "#6b7280" },
-      { "id": "focus-2",      "start": "18:00", "end": "20:00", "label": "Deep Work",       "icon": "🎯", "mode": "focus",      "color": "#f59e0b" },
-      { "id": "evening",      "start": "20:00", "end": "22:00", "label": "Personal Time",   "icon": "❤️", "mode": "personal",   "color": "#ec4899" },
-      { "id": "reading",      "start": "22:00", "end": "23:00", "label": "Reading",         "icon": "📚", "mode": "reading",    "color": "#6366f1" },
-      { "id": "sleep",        "start": "23:00", "end": "09:00", "label": "Sleep",           "icon": "😴", "mode": "sleep",      "color": "#1e1e2a" }
+      { "id": "wake",         "start": "09:00", "end": "09:30", "label": "Wake Up",              "icon": "☀️", "mode": "morning",    "color": "#f59e0b" },
+      { "id": "workout",      "start": "09:30", "end": "10:30", "label": "Workout",              "icon": "💪", "mode": "workout",    "color": "#ef4444" },
+      { "id": "ready",        "start": "10:30", "end": "11:00", "label": "Getting Ready",        "icon": "🚿", "mode": "transition", "color": "#6b7280" },
+      { "id": "brunch-work",  "start": "11:00", "end": "13:15", "label": "Brunch + Light Work",  "icon": "🍳", "mode": "light-work", "color": "#8b5cf6" },
+      { "id": "commute-cafe", "start": "13:15", "end": "13:45", "label": "Commute to Cafe",      "icon": "🚗", "mode": "commute",    "color": "#6b7280" },
+      { "id": "cafe",         "start": "13:45", "end": "19:30", "label": "Deep Work at Cafe",    "icon": "☕", "mode": "focus",      "color": "#f59e0b" },
+      { "id": "commute-home", "start": "19:30", "end": "20:00", "label": "Commute Home",         "icon": "🚗", "mode": "commute",    "color": "#6b7280" },
+      { "id": "evening",      "start": "20:00", "end": "22:30", "label": "Miti + Dinner",        "icon": "❤️", "mode": "personal",   "color": "#ec4899" },
+      { "id": "night-work",   "start": "22:30", "end": "00:30", "label": "Night Work",           "icon": "🎯", "mode": "focus",      "color": "#f59e0b" },
+      { "id": "reading",      "start": "00:30", "end": "02:00", "label": "Reading",              "icon": "📚", "mode": "reading",    "color": "#6366f1" },
+      { "id": "sleep",        "start": "02:00", "end": "09:00", "label": "Sleep",                "icon": "😴", "mode": "sleep",      "color": "#1e1e2a" }
     ]
   },
-
   "voice": {
-    "tts": {
-      "provider": "elevenlabs",
-      "voiceId": ""
-    },
-    "stt": {
-      "provider": "whisper"
+    "tts": { "provider": "elevenlabs", "voiceId": "" },
+    "stt": { "provider": "whisper" }
+  },
+  "webhook": {
+    "enabled": true,
+    "url": "http://127.0.0.1:18789/hooks/agent",
+    "token": "",
+    "messageTemplate": "[🎙️ iPad Voice] Tushar said: \"{text}\"\n\nRespond via voice on the iPad dashboard. Run: curl -sk -X POST \"https://localhost:3142/api/tts\" -H \"Content-Type: application/json\" -d '{\"text\":\"your response\"}'\n\nKeep your reply concise and conversational (1-3 sentences). Speak as Sensei — warm, direct, like a coach.",
+    "agentPayload": {
+      "name": "iPad Voice",
+      "agentId": "sensei",
+      "wakeMode": "now",
+      "deliver": false,
+      "timeoutSeconds": 60
     }
   },
-
-  "webhook": {
-    "enabled": false,
-    "url": "http://localhost:18789/hooks/wake",
-    "token": "",
-    "messageTemplate": "[🎙️ Voice] User said: \"{text}\""
-  },
-
   "goals": {
     "enabled": true,
-    "label": "Today's Goals"
+    "label": "Ship or Shame"
   },
-
   "announcements": {
     "panelTitle": "📌 Messages"
   },
-
   "server": {
     "httpPort": 3141,
     "httpsPort": 3142

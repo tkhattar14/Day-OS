@@ -138,10 +138,22 @@ function notifyWebhook(text) {
   const template = webhookConfig?.messageTemplate || '[🎙️ Voice] User said: "{text}"';
   const message = template.replace('{text}', text);
 
+  // Build payload — supports both /hooks/wake and /hooks/agent formats
+  let payload;
+  if (webhookConfig?.agentPayload) {
+    // Agent mode: use /hooks/agent with full agent config
+    payload = JSON.stringify({
+      message,
+      ...webhookConfig.agentPayload
+    });
+  } else {
+    // Wake mode: simple text + mode
+    payload = JSON.stringify({ text: message, mode: 'now' });
+  }
+
   try {
     const parsed = new URL(url);
     const transport = parsed.protocol === 'https:' ? https : http;
-    const payload = JSON.stringify({ text: message, mode: 'now' });
 
     const req = transport.request({
       hostname: parsed.hostname,
@@ -155,7 +167,7 @@ function notifyWebhook(text) {
     }, (res) => {
       let body = '';
       res.on('data', d => body += d);
-      res.on('end', () => console.log(`[WEBHOOK] Response (${res.statusCode})`));
+      res.on('end', () => console.log(`[WEBHOOK] Response (${res.statusCode}): ${body.slice(0, 100)}`));
     });
     req.on('error', (e) => console.log(`[WEBHOOK] Error: ${e.message}`));
     req.write(payload);
