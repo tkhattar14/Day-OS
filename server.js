@@ -569,6 +569,81 @@ function cleanupAudio() {
   } catch (e) {}
 }
 
+// ===== BLOCK TRANSITION DETECTION =====
+let lastBlockId = null;
+
+function checkBlockTransition() {
+  try {
+    const schedule = getCurrentSchedule();
+    const currentId = schedule.currentBlock?.id || schedule.currentBlock?.label || null;
+    
+    if (lastBlockId !== null && currentId !== lastBlockId) {
+      const previous = lastBlockId;
+      const current = schedule.currentBlock;
+      console.log(`[BLOCK] Transition: "${previous}" → "${current?.label || 'none'}"`);
+      
+      // Fire webhook to Sensei
+      notifyBlockChange(previous, current, schedule);
+      
+      // Broadcast to connected clients
+      broadcast({ 
+        action: 'block_change', 
+        previous: previous,
+        current: current,
+        mode: schedule.mode
+      });
+    }
+    lastBlockId = currentId;
+  } catch (e) {
+    console.log('[BLOCK] Check error:', e.message);
+  }
+}
+
+function notifyBlockChange(previousId, currentBlock, schedule) {
+  const webhookConfig = config.webhook;
+  if (!webhookConfig?.enabled) return;
+  
+  const token = HOOKS_TOKEN || webhookConfig?.token || '';
+  const url = webhookConfig?.url || `http://127.0.0.1:${GATEWAY_PORT}/hooks/agent`;
+  if (!token && !url.includes('/hooks/agent')) return;
+
+  const nextBlock = schedule.nextBlock;
+  const message = `[🔄 Block Change] Schedule transitioned to: ${currentBlock?.icon || ''} ${currentBlock?.label || 'Free time'} (${currentBlock?.start || '?'}–${currentBlock?.end || '?'}, mode: ${schedule.mode}).${nextBlock ? ` Next up: ${nextBlock.icon} ${nextBlock.label} at ${nextBlock.start}.` : ''}\n\nPush a creative hero canvas for this block! Use: curl -sk -X POST "https://localhost:3142/api/hero" -H "Content-Type: application/json" -d '{"html":"<your creative HTML>","source":"sensei","ttl":0}'`;
+
+  const payload = JSON.stringify({
+    message,
+    ...(webhookConfig?.agentPayload || {}),
+    name: 'Block Change'
+  });
+
+  try {
+    const parsed = new URL(url);
+    const transport = parsed.protocol === 'https:' ? https : http;
+    const req = transport.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    }, (res) => {
+      console.log(`[BLOCK] Webhook sent (${res.statusCode}): ${previousId} → ${currentBlock?.label}`);
+    });
+    req.on('error', (e) => console.log('[BLOCK] Webhook error:', e.message));
+    req.end(payload);
+  } catch (e) {
+    console.log('[BLOCK] Webhook error:', e.message);
+  }
+}
+
+// Initialize current block on startup
+try { lastBlockId = getCurrentSchedule().currentBlock?.id || getCurrentSchedule().currentBlock?.label || null; } catch(e) {}
+
+// Check block transitions every 15 seconds
+setInterval(checkBlockTransition, 15000);
+
 // Push context every 15 seconds
 setInterval(() => {
   if (clients.size === 0) return;
